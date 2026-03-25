@@ -25,6 +25,12 @@ class Package
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $destination = null;
 
+    #[ORM\Column]
+    private ?\DateTime $estimatedDelivery = null;
+
+    #[ORM\Column]
+    private ?\DateTimeImmutable $updatedAt = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -74,6 +80,30 @@ class Package
     public function setDestination(?string $destination): static
     {
         $this->destination = $destination;
+
+        return $this;
+    }
+
+    public function getEstimatedDelivery(): ?\DateTime
+    {
+        return $this->estimatedDelivery;
+    }
+
+    public function setEstimatedDelivery(\DateTime $estimatedDelivery): static
+    {
+        $this->estimatedDelivery = $estimatedDelivery;
+
+        return $this;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
+    {
+        $this->updatedAt = $updatedAt;
 
         return $this;
     }
