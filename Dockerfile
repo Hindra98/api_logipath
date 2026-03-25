@@ -24,10 +24,16 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Copier les fichiers du projet
 WORKDIR /var/www/html
-COPY . .
-RUN mkdir -p var/cache var/log var/sessions
+
+# OPTIMISATION : On installe les dépendances PHP d'abord
+# En copiant uniquement ces deux fichiers, Docker met les paquets en cache et
 # Installer les dépendances (sans les scripts pour l'instant)
-RUN composer install --no-scripts --no-interaction --optimize-autoloader
+COPY composer.json composer.lock ./
+RUN composer install --no-scripts --no-interaction --no-autoloader --optimize-autoloader
+
+COPY . .
+RUN mkdir -p var/cache var/log var/sessions \
+&& composer dump-autoload --optimize --no-scripts
 
 # Permissions pour Symfony
 RUN chown -R www-data:www-data /var/www/html/var
