@@ -25,7 +25,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Copier les fichiers du projet
 WORKDIR /var/www/html
 COPY . .
-
+RUN mkdir -p var/cache var/log var/sessions
 # Installer les dépendances (sans les scripts pour l'instant)
 RUN composer install --no-scripts --no-interaction --optimize-autoloader
 
