@@ -33,11 +33,18 @@ COPY composer.json composer.lock ./
 RUN composer install --no-scripts --no-interaction --no-autoloader --optimize-autoloader
 
 COPY . .
-RUN mkdir -p var/cache var/log var/sessions \
-&& composer dump-autoload --optimize --no-scripts
 
-# Permissions pour Symfony
-RUN chown -R www-data:www-data /var/www/html/var
+RUN mkdir -p var/cache var/log var/sessions \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 var/cache var/log var/sessions
+
+# On génère l'autoloader et on pré-chauffe le cache en tant que www-data
+USER www-data
+RUN composer dump-autoload --optimize --no-scripts \
+    && php bin/console cache:warmup --env=prod
+
+USER root
+# Retour en root pour qu'Apache puisse démarrer sur le port 80
 
 # Exposer le port 80
 EXPOSE 80
