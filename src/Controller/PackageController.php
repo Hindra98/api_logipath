@@ -251,14 +251,13 @@ class PackageController extends AbstractController
       $isNew = false;
 
       // Validation des données requises
-      if (!isset($data['trackingNumber'])) {
         if (!isset($data['trackingNumber']))
           return $this->json([
             'success' => false,
             'message' => 'Le numéro de suivi (trackingNumber) est requis.',
             'error' => 'Missing tracking number'
           ], Response::HTTP_BAD_REQUEST);
-      }
+      
 
       $trackingNumber = $data['trackingNumber'];
 
@@ -325,6 +324,195 @@ class PackageController extends AbstractController
       return $this->json([
         'success' => false,
         'message' => 'Une erreur est survenue lors du traitement.',
+        'error' => $e->getMessage()
+      ], Response::HTTP_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Endpoint pour mettre à jour le statut d'un colis
+   * Route: PUT /api/package/{packageId}/status
+   */
+  #[Route('/{packageId}/status', name: 'app_package_change_status', methods: ['PUT'])]
+  #[OA\Put(
+    path: '/api/package/{packageId}/status',
+    summary: 'Mettre à jour le statut d\'un colis',
+    description: 'Met à jour le statut d\'un colis existant'
+  )]
+  #[OA\RequestBody(
+    required: true,
+    content: new OA\JsonContent(
+      properties: [
+        new OA\Property(property: 'status', type: 'string', example: 'Expédié', description: 'Statut actuel du colis'),
+      ]
+    )
+  )]
+  #[OA\Response(
+    response: 200,
+    description: 'Statut du colis mis à jour avec succès',
+    content: new OA\JsonContent(
+      type: 'object',
+      properties: [
+        new OA\Property(property: 'success', type: 'boolean', example: true, description: 'Indique si l\'opération a réussi'),
+        new OA\Property(property: 'message', type: 'string', example: 'Statut du colis mis à jour avec succès.', description: 'Message de retour'),
+        new OA\Property(property: 'data', type: 'object', ref: new Model(type: Package::class), description: 'Colis mis à jour'),
+      ]
+    )
+  )]
+  #[OA\Response(
+    response: 400,
+    description: 'Erreur de validation des données',
+    content: new OA\JsonContent(
+      type: 'object',
+      properties: [
+        new OA\Property(property: 'success', type: 'boolean', example: false, description: 'Indique si l\'opération a réussi'),
+        new OA\Property(property: 'message', type: 'string', example: 'Statut du colis non mis à jour.', description: 'Message de retour'),
+        new OA\Property(property: 'error', type: 'string', example: 'Donnees manquantes', description: 'Message d\'erreur détaillé'),
+      ]
+    )
+  )]
+  #[OA\Response(
+    response: 500,
+    description: 'Erreur serveur',
+    content: new OA\JsonContent(
+      type: 'object',
+      properties: [
+        new OA\Property(property: 'success', type: 'boolean', example: false, description: 'Indique si l\'opération a réussi'),
+        new OA\Property(property: 'message', type: 'string', example: 'Erreur interne du serveur.', description: 'Message de retour'),
+        new OA\Property(property: 'error', type: 'string', example: 'Erreur interne du serveur', description: 'Message d\'erreur détaillé'),
+      ]
+    )
+  )]
+  public function updatePackageStatus(
+    string $packageId,
+    Request $request,
+    PackageRepository $packageRepository,
+    EntityManagerInterface $entityManager,
+    ValidatorInterface $validator
+  ): Response {
+    try {
+      // Récupération des données JSON
+      $data = json_decode($request->getContent(), true);
+
+      // Chercher le colis existant
+      $package = $packageRepository->findOneBy(['id' => $packageId ?? ""]);
+
+      // Créer un nouveau colis si inexistant
+      if (!$package) {
+        return $this->json([
+          'success' => false,
+          'message' => 'Le colis n\'existe pas.',
+          'error' => 'Package not found'
+        ], Response::HTTP_NOT_FOUND);
+      }
+
+      // Mise à jour des champs fournis
+      $package->setStatus($data['status'] ?? $package->getStatus());
+      // Mise à jour de la date de modification
+      $package->setUpdatedAt(new \DateTimeImmutable());
+      // 4. Validation
+      $errors = $validator->validate($package);
+      if (count($errors) > 0) {
+        return $this->json([
+          'success' => false,
+          'message' => 'Une erreur est survenue lors du traitement.',
+          'error' => $errors->__toString()
+        ], Response::HTTP_BAD_REQUEST);
+      }
+
+      // Sauvegarde en base de données
+      $entityManager->persist($package);
+      $entityManager->flush();
+
+      return $this->json([
+        'success' => true,
+        'message' => 'Colis mis à jour avec succès.',
+        'data' => $package
+      ], Response::HTTP_OK);
+    } catch (\Exception $e) {
+      return $this->json([
+        'success' => false,
+        'message' => 'Une erreur est survenue lors du traitement.',
+        'error' => $e->getMessage()
+      ], Response::HTTP_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Endpoint pour supprimer un colis
+   * Route: DELETE /api/package/{packageId}
+   */
+  #[Route('/{packageId}', name: 'app_package_delete', methods: ['DELETE'])]
+  #[OA\Delete(
+    path: '/api/package/{packageId}',
+    summary: 'Supprimer un colis',
+    description: 'Supprime un colis existant'
+  )]
+  #[OA\Response(
+    response: 200,
+    description: 'Colis supprimé avec succès',
+    content: new OA\JsonContent(
+      type: 'object',
+      properties: [
+        new OA\Property(property: 'success', type: 'boolean', example: true, description: 'Indique si l\'opération a réussi'),
+        new OA\Property(property: 'message', type: 'string', example: 'Colis supprimé avec succès.', description: 'Message de retour'),
+      ]
+    )
+  )]
+  #[OA\Response(
+    response: 400,
+    description: 'Erreur de validation des données',
+    content: new OA\JsonContent(
+      type: 'object',
+      properties: [
+        new OA\Property(property: 'success', type: 'boolean', example: false, description: 'Indique si l\'opération a réussi'),
+        new OA\Property(property: 'message', type: 'string', example: 'Echec de suppression du colis.', description: 'Message de retour'),
+        new OA\Property(property: 'error', type: 'string', example: 'Donnees manquantes', description: 'Message d\'erreur détaillé'),
+      ]
+    )
+  )]
+  #[OA\Response(
+    response: 500,
+    description: 'Erreur serveur',
+    content: new OA\JsonContent(
+      type: 'object',
+      properties: [
+        new OA\Property(property: 'success', type: 'boolean', example: false, description: 'Indique si l\'opération a réussi'),
+        new OA\Property(property: 'message', type: 'string', example: 'Erreur interne du serveur.', description: 'Message de retour'),
+        new OA\Property(property: 'error', type: 'string', example: 'Erreur interne du serveur', description: 'Message d\'erreur détaillé'),
+      ]
+    )
+  )]
+  public function deletePackage(
+    string $packageId,
+    PackageRepository $packageRepository,
+    EntityManagerInterface $entityManager,
+  ): Response {
+    try {
+      
+      // Chercher le colis existant
+      $package = $packageRepository->findOneBy(['id' => $packageId ?? ""]);
+
+      if (!$package) {
+        return $this->json([
+          'success' => false,
+          'message' => 'Le colis n\'existe pas.',
+          'error' => 'Package not found'
+        ], Response::HTTP_NOT_FOUND);
+      }
+
+      // Suppression du colis
+      $entityManager->remove($package);
+      $entityManager->flush();
+
+      return $this->json([
+        'success' => true,
+        'message' => 'Colis supprimé avec succès.'
+      ], Response::HTTP_OK);
+    } catch (\Exception $e) {
+      return $this->json([
+        'success' => false,
+        'message' => 'Une erreur est survenue lors de la suppression.',
         'error' => $e->getMessage()
       ], Response::HTTP_INTERNAL_SERVER_ERROR);
     }
